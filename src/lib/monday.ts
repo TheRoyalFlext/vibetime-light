@@ -9,6 +9,7 @@ async function query<T>(gql: string, variables?: Record<string, unknown>): Promi
       "API-Version": "2024-01",
     },
     body: JSON.stringify({ query: gql, variables }),
+    cache: "no-store",
   })
 
   const json = await res.json()
@@ -16,7 +17,19 @@ async function query<T>(gql: string, variables?: Record<string, unknown>): Promi
   return json.data
 }
 
-export async function getBoardItems(boardId: string) {
+export type MondayItem = {
+  id: string
+  name: string
+  subitems: { id: string; name: string } []
+}
+
+export type MondayColumn = {
+  id: string
+  title: string
+  type: string
+}
+
+export async function getBoardItems(boardId: string): Promise<MondayItem[]> {
   const data = await query<{ boards: { items_page: { items: MondayItem[] } }[] }>(`
     query ($boardId: ID!) {
       boards(ids: [$boardId]) {
@@ -24,10 +37,7 @@ export async function getBoardItems(boardId: string) {
           items {
             id
             name
-            subitems {
-              id
-              name
-            }
+            subitems { id name }
           }
         }
       }
@@ -37,30 +47,46 @@ export async function getBoardItems(boardId: string) {
   return data.boards[0]?.items_page.items ?? []
 }
 
-export async function createSubitem(parentItemId: string, name: string) {
-  const data = await query<{ create_subitem: { id: string } }>(`
-    mutation ($parentItemId: ID!, $name: String!) {
-      create_subitem(parent_item_id: $parentItemId, item_name: $name) {
-        id
+export async function getBoardColumns(boardId: string): Promise<MondayColumn[]> {
+  const data = await query<{ boards: { columns: MondayColumn[] }[] }>(`
+    query ($boardId: ID!) {
+      boards(ids: [$boardId]) {
+        columns { id title type }
       }
     }
-  `, { parentItemId, name })
+  `, { boardId })
+
+  return data.boards[0]?.columns ?? []
+}
+
+export async function createSubitem(parentItemId: string, designerName: string): Promise<string> {
+  const data = await query<{ create_subitem: { id: string } }>(`
+    mutation ($parentItemId: ID!, $name: String!) {
+      create_subitem(parent_item_id: $parentItemId, item_name: $name) { id }
+    }
+  `, { parentItemId, name: designerName })
 
   return data.create_subitem.id
 }
 
-export async function updateSubitemHours(itemId: string, columnId: string, hours: number) {
+export async function updateSubitemNumberColumn(itemId: string, boardId: string, columnId: string, value: number): Promise<void> {
   await query(`
-    mutation ($itemId: ID!, $columnId: String!, $value: JSON!) {
-      change_column_value(item_id: $itemId, column_id: $columnId, value: $value) {
-        id
-      }
+    mutation ($boardId: ID!, $itemId: ID!, $columnId: String!, $value: JSON!) {
+      change_column_value(board_id: $boardId, item_id: $itemId, column_id: $columnId, value: $value) { id }
     }
-  `, { itemId, columnId, value: JSON.stringify({ number: hours }) })
+  `, { boardId, itemId, columnId, value: JSON.stringify(value) })
 }
 
-type MondayItem = {
-  id: string
-  name: string
-  subitems: { id: string; name: string }[]
+export async function getSubitemColumnValue(itemId: string, columnId: string): Promise<number> {
+  const data = await query<{ items: { column_values: { id: string; value: string }[] }[] }>(`
+    query ($itemId: ID!, $columnId: String!) {
+      items(ids: [$itemId]) {
+        column_values(ids: [$columnId]) { id value }
+      }
+    }
+  `, { itemId, columnId })
+
+  const raw = data.items[0]?.column_values[0]?.value
+  if (!raw) return 0
+  try { return JSON.parse(raw) ?? 0 } catch { return 0 }
 }

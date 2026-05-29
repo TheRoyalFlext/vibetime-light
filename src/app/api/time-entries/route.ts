@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { createServiceClient } from "@/lib/supabase/server"
+import { syncTimeEntryToMonday } from "@/lib/monday-sync"
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -55,5 +56,16 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Sync vers Monday en arrière-plan (ne bloque pas la réponse)
+  if (data.monday_sub_task_id) {
+    syncTimeEntryToMonday({
+      timeEntryId: data.id,
+      userId: targetUserId,
+      mondaySubTaskId: data.monday_sub_task_id,
+      hours: data.hours,
+    }).catch(console.error)
+  }
+
   return NextResponse.json(data, { status: 201 })
 }

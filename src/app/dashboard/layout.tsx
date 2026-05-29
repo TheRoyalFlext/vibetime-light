@@ -25,6 +25,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <NavLink href="/dashboard/team" label="Équipe" icon={
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           }/>
+          <NavLink href="/dashboard/admin/monday" label="Monday" icon={
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="currentColor"/>
+          }/>
         </nav>
 
         <div className="px-3 py-4 border-t border-gray-100">
