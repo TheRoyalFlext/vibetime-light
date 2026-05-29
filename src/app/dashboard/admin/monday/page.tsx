@@ -12,7 +12,9 @@ export default function MondayAdminPage() {
   const [hoursColumnId, setHoursColumnId] = useState("")
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [registering, setRegistering] = useState(false)
   const [syncResult, setSyncResult] = useState<{ projectsCreated: number; subTasksCreated: number } | null>(null)
+  const [webhookResult, setWebhookResult] = useState<{ event: string; id?: string; error?: string }[] | null>(null)
 
   useEffect(() => {
     fetch("/api/monday/config").then(r => r.json()).then((data: Config) => {
@@ -145,16 +147,50 @@ export default function MondayAdminPage() {
         </div>
       )}
 
-      {/* Webhook info */}
-      <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5 mt-4">
-        <p className="text-xs font-medium text-gray-700 mb-1">URL Webhook Monday</p>
-        <code className="text-[11px] text-gray-500 break-all">
-          {typeof window !== "undefined" ? window.location.origin : "https://ton-domaine.vercel.app"}/api/monday/webhook
-        </code>
-        <p className="text-[11px] text-gray-400 mt-2">
-          Ajoute cette URL dans Monday → Intégrations → Webhooks pour la sync en temps réel.
-        </p>
-      </div>
+      {/* Webhook registration */}
+      {config?.board_id && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mt-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Webhooks Monday</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Enregistre les webhooks pour que Monday notifie Vibetime en temps réel.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                setRegistering(true)
+                setWebhookResult(null)
+                const origin = window.location.origin
+                const res = await fetch("/api/monday/webhook/register", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ webhookUrl: `${origin}/api/monday/webhook` }),
+                })
+                const data = await res.json()
+                setWebhookResult(data.results)
+                setRegistering(false)
+              }}
+              disabled={registering}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-sm font-medium text-white hover:bg-gray-700 transition-colors disabled:opacity-50 shrink-0"
+            >
+              {registering ? "..." : "Enregistrer"}
+            </button>
+          </div>
+
+          {webhookResult && (
+            <div className="flex flex-col gap-1 mt-2">
+              {webhookResult.map(r => (
+                <div key={r.event} className={`text-xs px-3 py-2 rounded-lg flex items-center gap-2 ${r.error ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"}`}>
+                  <span>{r.error ? "✗" : "✓"}</span>
+                  <span className="font-mono">{r.event}</span>
+                  {r.error && <span className="opacity-70">— {r.error}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
